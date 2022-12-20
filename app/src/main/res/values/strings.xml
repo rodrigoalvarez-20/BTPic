@@ -1,3 +1,30 @@
 <resources>
     <string name="app_name">BTPic</string>
+    <string name="main_title">DSPic UART</string>
+    <string name="lbl_authors">Autores:\nRodrigo Alvarez\nOliver\nLeonardo Figueroa</string>
+    <string name="lbl_btstatus_title">Estado BT:</string>
+    <string name="btStatus_On">Encendido</string>
+    <string name="btStatus_PreOn">Encendiendo…</string>
+    <string name="btStatus_Off">Apagado</string>
+    <string name="btStatus_PreOff">Apagando…</string>
+    <string name="lbl_prevDevices">Dispositivos recordados:</string>
+    <string name="btn_connectToDevice">Conectar al dispositivo</string>
+    <string name="btn_disconnectFromDevice">Desconectar dispositivo</string>
+    <string name="bt_statusConn">Estatus de la conexión:</string>
+    <string name="bt_statusConnected">Conectado</string>
+    <string name="bt_statusDisconnected">Desconectado</string>
+    <string name="lbl_actual_angle">Angulo actual: %d</string>
+    <string name="rd_lbl_angle">Angulo</string>
+    <string name="rd_lbl_distance">Distancia</string>
+    <string name="rd_lbl_height">Altura</string>
+    <string name="holder_data">Datos</string>
+    <string name="btn_send_data">Enviar</string>
+    <string name="btn_launch">Lanzar</string>
+    <string name="lbl_connected_to_device">Connectado al dispositivo %s</string>
+
+
+    <string name="ts_no_device_error">Por favor seleccione un dispositivo valido</string>
+    <string name="ts_angle_error">El valor del angulo solo puede ser de 0 a 180</string>
+    <string name="ts_data_error">Ha ocurrido un error al enviar los datos</string>
+    <string name="ts_data_warning">El formato de los datos es incorrecto</string>
 </resources>
