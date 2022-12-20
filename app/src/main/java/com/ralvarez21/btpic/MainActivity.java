@@ -35,6 +35,7 @@ import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -56,6 +57,8 @@ public class MainActivity extends AppCompatActivity {
     public LinearLayout lyData;
     public EditText txtData;
     private int selectedIndex = 0;
+    public TextView lblAngle;
+    public int actualAngle = 0;
 
     @SuppressLint("MissingPermission")
     ActivityResultLauncher<Intent> activityResultLauncher = registerForActivityResult(
@@ -93,8 +96,11 @@ public class MainActivity extends AppCompatActivity {
         lyData = findViewById(R.id.lyData);
         btnSend = findViewById(R.id.btnSend);
         txtData = findViewById(R.id.txtData);
+        lblAngle = findViewById(R.id.lblActualAngle);
 
         bAdapter = BluetoothAdapter.getDefaultAdapter();
+
+
 
         tgBt.setOnCheckedChangeListener((btn, b) -> {
             if (b) {
@@ -145,7 +151,14 @@ public class MainActivity extends AppCompatActivity {
                     OutputStream out = btSocket.getOutputStream();
                     String dataToSend = txtData.getText().toString();
                     try {
+
+
+
+
                         int data = Integer.parseInt(dataToSend);
+                        double totalSteps = data / 1.8;
+                        data = (int) Math.ceil(totalSteps);
+                        Log.i("BTDATA", "Sending data: " + data);
                         out.write(data);
                     }catch (Exception ex) {
                         Log.e("BTDATA", ex.getLocalizedMessage());
@@ -195,7 +208,6 @@ public class MainActivity extends AppCompatActivity {
                         break;
                     } case BluetoothAdapter.STATE_TURNING_ON: {
                         tgBt.setTextOn("Encendido");
-
                         Log.i("BTSTATUS", "PREV_ON - " + estado);
                         break;
                     } case BluetoothAdapter.STATE_TURNING_OFF: {
@@ -322,6 +334,11 @@ public class MainActivity extends AppCompatActivity {
 
             try {
                 thSocket.connect();
+                InputStream socketIn = thSocket.getInputStream();
+                if (socketIn != null){
+                    BTListener thRecv = new BTListener(socketIn);
+                    thRecv.start();
+                }
                 runOnUiThread(() -> {
                     lblConStatus.setText("Connectado a " + thDev.getAddress());
                     btnConnect.setText("Desconectar dispositivo");
@@ -365,4 +382,46 @@ public class MainActivity extends AppCompatActivity {
             });
         }
     }
+
+    private class BTListener extends Thread {
+        private InputStream sckIn = null;
+
+        public BTListener(InputStream in){
+            sckIn = in;
+        }
+
+        public void run(){
+            if (sckIn != null){
+                byte[] data = new byte[256];
+                try {
+                    int status = sckIn.read(data);
+                    int actualSteps = Integer.parseInt(String.valueOf(data[0]));
+                    int actualAngle = (int) Math.floor(actualSteps * 1.8);
+                    if (status > 0){
+                        Log.i("BTDATA", "Datos recibidos: " + Arrays.toString(data));
+                        runOnUiThread(() ->{
+                            lblAngle.setText("Angulo actual: " + actualAngle);
+                        });
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        public void cancel(){
+            try{
+                if (sckIn != null){
+                    sckIn.close();
+                }
+            }catch(IOException ex){
+                Log.e("BTDEVICE", "Can't close receive socket");
+            }
+
+        }
+
+
+    }
+
+
 }

@@ -124,11 +124,50 @@
 
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/lblActualAngle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp"
+        tools:text="Angulo actual: 0" />
+
+    <RadioGroup
+        android:id="@+id/rdgOption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_margin="8dp"
+        android:checkedButton="@id/rdAngle"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/rdAngle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Angulo" />
+
+        <RadioButton
+            android:id="@+id/rdDistance"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Distancia" />
+
+        <RadioButton
+            android:id="@+id/rdHeight"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Altura" />
+    </RadioGroup>
+
     <LinearLayout
         android:id="@+id/lyData"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
+        android:layout_margin="8dp"
         android:gravity="center"
         android:orientation="horizontal"
         android:visibility="gone"
@@ -141,7 +180,8 @@
             android:layout_weight="1"
             android:ems="10"
             android:hint="Datos"
-            android:inputType="textPersonName" />
+            android:inputType="textPersonName"
+            android:textAlignment="center" />
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnSend"
@@ -153,5 +193,15 @@
             android:text="Enviar"
             android:textColor="@color/white" />
     </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btnLaunch"
+        android:layout_width="180dp"
+        android:layout_height="180dp"
+        android:layout_gravity="center"
+        android:layout_marginTop="12dp"
+        android:background="@android:color/transparent"
+        android:scaleType="centerCrop"
+        app:srcCompat="@drawable/btn_launch_2" />
 
 </LinearLayout>
