@@ -146,6 +146,7 @@ public class MainActivity extends AppCompatActivity {
                     String dataToSend = txtData.getText().toString();
                     try {
                         int data = Integer.parseInt(dataToSend);
+                        Log.i("BTDATA", String.valueOf(data));
                         out.write(data);
                     }catch (Exception ex) {
                         Log.e("BTDATA", ex.getLocalizedMessage());
