@@ -43,8 +43,8 @@ public class BTHelper extends Thread {
             thSocket.connect();
             InputStream socketIn = thSocket.getInputStream();
             if (socketIn != null){
-                //BTListener thRecv = new BTListener(socketIn);
-                //thRecv.start();
+                BTListener thRecv = new BTListener(socketIn, ctx);
+                thRecv.start();
             }
             Intent setConnectedIntent = new Intent(Constants.SET_CONNECTED_STATUS_BR);
             setConnectedIntent.putExtra(Constants.SET_CONNECTED_STATUS_EXTRA_DEVICE, thDev.getAddress());

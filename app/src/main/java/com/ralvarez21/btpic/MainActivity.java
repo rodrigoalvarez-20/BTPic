@@ -3,12 +3,17 @@ package com.ralvarez21.btpic;
 import static com.ralvarez21.btpic.Constants.ANGLE_PREF_NAME;
 import static com.ralvarez21.btpic.Constants.APP_PREF_NAME;
 import static com.ralvarez21.btpic.Constants.BTTAG;
+import static com.ralvarez21.btpic.Constants.BT_DATA_RCV_BR;
+import static com.ralvarez21.btpic.Constants.BT_DATA_RCV_BR_EXTRA;
+import static com.ralvarez21.btpic.Constants.BT_DATA_RCV_ERROR;
+import static com.ralvarez21.btpic.Constants.MASS_PREF_NAME;
 import static com.ralvarez21.btpic.Constants.SET_CONNECTED_STATUS_BR;
 import static com.ralvarez21.btpic.Constants.SET_CONNECTED_STATUS_EXTRA_DEVICE;
 import static com.ralvarez21.btpic.Constants.SET_DISCONNECTED_STATUS_BR;
 import static com.ralvarez21.btpic.Constants.TOOGLE_LOADING_BR;
 import static com.ralvarez21.btpic.Constants.TOOGLE_LOADING_EXTRA_STATE;
 import static com.ralvarez21.btpic.Constants.UPDATE_BTSOCKET_BR;
+import static com.ralvarez21.btpic.Constants.VEL_PREF_NAME;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -18,7 +23,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.os.ProcessCompat;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -35,7 +39,10 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 
+import android.os.PersistableBundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -44,20 +51,15 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.security.Permission;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.UUID;
 
 import es.dmoral.toasty.Toasty;
 
@@ -79,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
     private int selectedIndex = 0;
     private TextView lblAngle;
     private int actualAngle = 0;
+    private float rocketMass, rocketVel;
+    private boolean isAngleSendMinor = false;
     private RadioButton rdAngle, rdDistance, rdHeight;
     private final String[] permissionsRequired = new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN};
     private final int[] permissionsCodes = new int[]{100, 101, 102};
@@ -108,6 +112,10 @@ public class MainActivity extends AppCompatActivity {
 
         shPrefs = getSharedPreferences(APP_PREF_NAME, MODE_PRIVATE);
         actualAngle = shPrefs.getInt(ANGLE_PREF_NAME, 0);
+        rocketMass = shPrefs.getFloat(MASS_PREF_NAME, 2);
+        rocketVel = shPrefs.getFloat(VEL_PREF_NAME, 20);
+
+        shPrefs.registerOnSharedPreferenceChangeListener(shListener);
 
         if (ContextCompat.checkSelfPermission(this, permissionsRequired[0]) != PackageManager.PERMISSION_GRANTED) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -123,6 +131,8 @@ public class MainActivity extends AppCompatActivity {
         btFilters.addAction(SET_CONNECTED_STATUS_BR);
         btFilters.addAction(SET_DISCONNECTED_STATUS_BR);
         btFilters.addAction(UPDATE_BTSOCKET_BR);
+        btFilters.addAction(BT_DATA_RCV_BR);
+        btFilters.addAction(BT_DATA_RCV_ERROR);
 
         registerReceiver(receiver, btFilters);
 
@@ -159,6 +169,19 @@ public class MainActivity extends AppCompatActivity {
 
         mapBTStatus();
 
+        //setLayoutData(true);
+
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.settings_menu, menu);
+        MenuItem item = menu.findItem(R.id.action_settings);
+        item.setOnMenuItemClickListener(menuItem -> {
+            startActivity(new Intent(this, Settings.class));
+            return true;
+        });
+        return true;
     }
 
     public void setLayoutData(boolean status){
@@ -225,7 +248,6 @@ public class MainActivity extends AppCompatActivity {
         btnConnect.setOnClickListener(v -> {
             if (btDevSelected != null){
                 if(btHelperThread != null){
-                    //btHelperThread.cancel();
                     btHelperThread = null;
                     btnConnect.setText(getString(R.string.btn_connectToDevice));
                     lblConStatus.setText(getString(R.string.bt_statusDisconnected));
@@ -248,24 +270,80 @@ public class MainActivity extends AppCompatActivity {
                     OutputStream out = btSocket.getOutputStream();
                     String dataToSend = txtData.getText().toString();
                     try {
-                        // Algo debe de ir aqui, pero no recuerdo que
                         int data = Integer.parseInt(dataToSend);
+                        int totalSteps = 0; // Esta es la variable que va a controlar cuantos pasos va a dar y en que direccion. Si es 0 no enviar
+                        int angle = 0;
                         boolean sendData = true;
+                        double initialVel = Math.pow(rocketVel, 2);
+                        double sin_90 = Math.sin(90 * Math.PI / 180);
+                        double sin_45 = Math.sin(45 * Math.PI / 180);
+                        double sin_90_squared = Math.pow(sin_90, 2);
                         if (rdAngle.isChecked()){
-                            Log.i(BTTAG, "Validando datos del angulo");
-                            if (data > 180 || data < 0){
-                                Toasty.warning(this, getString(R.string.ts_angle_error)).show();
+                            if (!validateAngleValue(data)){
+                                Toasty.warning(this, getResources().getString(R.string.ts_angle_error)).show();
                                 sendData = false;
                             }else {
-                                data = convertToSteps(data);
+                                angle = data;
                             }
-                        } // Aplicar las formulas de tiro parabolico para calcular el angulo y con base a ello, dividir entre 1.8 y mandar
+                        }else if(rdDistance.isChecked()){
+                            // Validar el valor de la distancia seleccionada
+                            int maxDistance = (int) Math.floor(initialVel/9.81 * sin_45);
+                            if (data > maxDistance){
+                                Toasty.warning(this, getResources().getString(R.string.ts_distance_error, maxDistance)).show();
+                                sendData = false;
+                            }else {
+                                angle = data == 0 ? 90 : (int) Math.ceil(Math.asin(data*9.81/initialVel) * (180 / Math.PI));
+                            }
+                        }else if(rdHeight.isChecked()){
+                            double  maxHeight = ((initialVel/9.81) * sin_90_squared);
+                            Log.i(BTTAG, "Max height: " + maxHeight);
+                            if (data < rocketVel || data > maxHeight){
+                                Toasty.warning(this, getResources().getString(R.string.ts_height_error, maxHeight)).show();
+                                sendData = false;
+                            }else{
+                                angle = (int) Math.ceil( Math.asin((9.81*data)/(initialVel)) * 180 / Math.PI );
+                            }
+                        }
+
+                        Log.i(BTTAG, "Angulo obtenido: " + angle);
+
+                        // Validar que el angulo actual (a enviar) sea mayor que el que se tiene en el dispositivo (preferencias)
+                        // Si el angulo es menor, activar la bandera de negativo
+                        if (angle < actualAngle){
+                            //int tempActualAngle = actualAngle;
+                            angle = actualAngle - angle;
+                            Log.i(BTTAG, "Angulo a calibrar: " + angle);
+                            int tempSteps  = convertToSteps(angle);
+                            Log.i(BTTAG, "Pasos a dar: " + tempSteps);
+                            String binData = RPad(Integer.toBinaryString(tempSteps), 8, '0');
+                            Log.i(BTTAG, "Pasos a dar en binario: " + binData);
+                            char[] stepsInBin = binData.toCharArray();
+                            stepsInBin[0] = '1';
+                            StringBuilder tempResultNumber = new StringBuilder();
+                            for (char c :  stepsInBin){
+                                tempResultNumber.append(c);
+                            }
+                            Log.i(BTTAG, "Valor binario con bandera: " + tempResultNumber);
+                            angle = Integer.parseInt(tempResultNumber.toString(), 2);
+                            Log.i(BTTAG, "Angulo obtenido" + angle);
+                            totalSteps = angle;
+                            isAngleSendMinor = true;
+                        }else if (angle > actualAngle) {
+                            angle -= actualAngle;
+                            totalSteps = convertToSteps(angle);
+                            isAngleSendMinor = false;
+                        }else {
+                            sendData = false;
+                            isAngleSendMinor = false;
+                        }
+
                         if (sendData){
-                            Log.i(BTTAG, "Sending data: " + data);
-                            out.write(data);
+                            //totalSteps = convertToSteps(angle);
+                            Log.i(BTTAG, "Sending steps: " + totalSteps);
+                            out.write(totalSteps);
                         }
                     }catch (Exception ex) {
-                        Log.e(BTTAG, ex.getLocalizedMessage());
+                        Log.e(BTTAG, ex.getMessage());
                         Toasty.warning(this, getString(R.string.ts_data_warning)).show();
                     }
                 }catch(IOException e) {
@@ -275,8 +353,17 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private boolean validateAngleValue(int angle_value){
+        Log.i(BTTAG, "Validando datos del angulo");
+        return angle_value > 0 && angle_value <= 180;
+    }
+
+    public static String RPad(String str, Integer length, char car) {
+        return (String.format("%" + length + "s", "").replace(" ", String.valueOf(car)) + str).substring(str.length(), length + str.length());
+    }
+
     private int convertToSteps(int in){
-        return (int) Math.ceil(in / 1.8);
+        return (int) Math.round(in / 1.8);
     }
 
     private void turnOnBT() {
@@ -332,6 +419,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         mapBTStatus();
+        shPrefs.registerOnSharedPreferenceChangeListener(shListener);
         if (btDevSelected != null){
             spPaired.setSelection(selectedIndex);
         }
@@ -342,7 +430,19 @@ public class MainActivity extends AppCompatActivity {
     public void onDestroy() {
         super.onDestroy();
         this.unregisterReceiver(receiver);
+        shPrefs.unregisterOnSharedPreferenceChangeListener(shListener);
     }
+
+    private final SharedPreferences.OnSharedPreferenceChangeListener shListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override
+        public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
+            Log.i(BTTAG, "Prefs changed");
+            actualAngle = shPrefs.getInt(ANGLE_PREF_NAME, 0);
+            rocketMass = shPrefs.getFloat(MASS_PREF_NAME, 2);
+            rocketVel = shPrefs.getFloat(VEL_PREF_NAME, 20);
+            lblAngle.setText(getString(R.string.lbl_actual_angle, actualAngle));
+        }
+    };
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
@@ -355,8 +455,7 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 String deviceName = device.getName();
-                //String deviceHardwareAddress = device.getAddress(); // MAC address
-                Log.i(BTTAG, "Device found: " + deviceName); //+ " - " + deviceHardwareAddress);
+                Log.i(BTTAG, "Device found: " + deviceName);
             } else if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
                 int estado = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
                 switch (estado) {
@@ -401,7 +500,21 @@ public class MainActivity extends AppCompatActivity {
                 if(btHelperThread != null){
                     btSocket = btHelperThread.thSocket;
                 }
-
+            }else if (action.equals(BT_DATA_RCV_BR)){
+                int newDevAngle = intent.getIntExtra(BT_DATA_RCV_BR_EXTRA, 0);
+                int angleToSave = 0;
+                Log.i(BTTAG, "Data from Intent BT_RCV: " + newDevAngle);
+                if (isAngleSendMinor){
+                    Log.i(BTTAG, "El angulo recibido es menor al actual");
+                    angleToSave = actualAngle - newDevAngle;
+                }else {
+                    angleToSave = actualAngle + newDevAngle;
+                }
+                actualAngle = angleToSave;
+                shPrefs.edit().putInt(ANGLE_PREF_NAME, angleToSave).apply();
+                Toasty.success(getApplicationContext(),  getResources().getString(R.string.bt_rcv_info, actualAngle)).show();
+            }else{
+                Toasty.error(getApplicationContext(), getResources().getString(R.string.bt_rcv_error)).show();
             }
         }
     };
