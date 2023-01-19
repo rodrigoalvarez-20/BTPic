@@ -1,5 +1,7 @@
 package com.ralvarez21.btpic;
 
+import static com.ralvarez21.btpic.Constants.BTTAG;
+
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -50,14 +52,14 @@ public class BTHelper extends Thread {
             setConnectedIntent.putExtra(Constants.SET_CONNECTED_STATUS_EXTRA_DEVICE, thDev.getAddress());
             this.ctx.sendBroadcast(setConnectedIntent);
 
-            Log.i(Constants.BTTAG, "Connected to device");
+            Log.i(BTTAG, "Connected to device");
         } catch (IOException connectException) {
             try {
                 if (this.thSocket!= null) {
                     thSocket.close();
                 }
             } catch (IOException closeException) {
-                Log.e("BTDEVICE", "Can't close socket");
+                Log.e(BTTAG, "Can't close socket");
             }
         }finally {
             setLoadIntent.putExtra(Constants.TOOGLE_LOADING_EXTRA_STATE, false);

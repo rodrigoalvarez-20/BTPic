@@ -21,6 +21,7 @@
     <string name="btn_send_data">Enviar</string>
     <string name="btn_launch">Lanzar</string>
     <string name="lbl_connected_to_device">Connectado al dispositivo %s</string>
+    <string name="btn_graph">Graficar valores</string>
 
     <string name="lbl_vel_inicial">Velocidad del proyectil (m/s):</string>
     <string name="lbl_rocket_mass">Masa del proyectil (g):</string>

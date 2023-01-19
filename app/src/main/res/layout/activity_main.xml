@@ -217,20 +217,43 @@
                     android:text="@string/btn_send_data"
                     android:textColor="@color/white" />
             </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_gravity="center"
+                android:layout_height="wrap_content">
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnGraph"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_margin="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/rd_btn_send"
+                    android:text="@string/btn_graph"
+                    android:textColor="@color/white" />
+
+                <com.airbnb.lottie.LottieAnimationView
+                    android:id="@+id/btnLaunch"
+                    android:layout_width="0dp"
+                    android:layout_height="96dp"
+                    android:layout_weight="1"
+                    android:layout_gravity="center"
+                    app:lottie_autoPlay="true"
+                    app:lottie_loop="true"
+                    app:lottie_rawRes="@raw/rocket_wait" />
+            </LinearLayout>
+
+
+            <com.github.mikephil.charting.charts.LineChart
+                android:id="@+id/chtLine"
+                android:visibility="gone"
+                tools:visibility="visible"
+                android:layout_margin="8dp"
+                android:layout_width="match_parent"
+                android:layout_height="380dp"/>
 
         </LinearLayout>
 
-        <!--
-        <com.airbnb.lottie.LottieAnimationView
-            android:id="@+id/btnLaunch"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
-            android:layout_gravity="center"
-            android:layout_marginTop="12dp"
-            app:lottie_autoPlay="true"
-            app:lottie_loop="true"
-            app:lottie_rawRes="@raw/rocket_wait" />
-        -->
     </LinearLayout>
 
 

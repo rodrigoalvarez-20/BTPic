@@ -56,6 +56,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -70,7 +76,8 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<BluetoothDevice> pairedDevices;
     private ToggleButton tgBt;
     private Spinner spPaired;
-    private Button btnConnect, btnSend;
+    private Button btnConnect, btnSend, btnGraph;
+    private LineChart chart;
     private BTHelper btHelperThread = null;
     private BluetoothDevice btDevSelected = null;
     private TextView lblConStatus;
@@ -81,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
     private int selectedIndex = 0;
     private TextView lblAngle;
     private int actualAngle = 0;
-    private float rocketMass, rocketVel;
+    private float rocketVel;
     private boolean isAngleSendMinor = false;
     private RadioButton rdAngle, rdDistance, rdHeight;
     private final String[] permissionsRequired = new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN};
@@ -112,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
 
         shPrefs = getSharedPreferences(APP_PREF_NAME, MODE_PRIVATE);
         actualAngle = shPrefs.getInt(ANGLE_PREF_NAME, 0);
-        rocketMass = shPrefs.getFloat(MASS_PREF_NAME, 2);
+        //rocketMass = shPrefs.getFloat(MASS_PREF_NAME, 2);
         rocketVel = shPrefs.getFloat(VEL_PREF_NAME, 20);
 
         shPrefs.registerOnSharedPreferenceChangeListener(shListener);
@@ -148,6 +155,8 @@ public class MainActivity extends AppCompatActivity {
         rdAngle = findViewById(R.id.rdAngle);
         rdDistance = findViewById(R.id.rdDistance);
         rdHeight = findViewById(R.id.rdHeight);
+        btnGraph = findViewById(R.id.btnGraph);
+        chart = findViewById(R.id.chtLine);
 
         lblAngle.setText(getString(R.string.lbl_actual_angle, actualAngle));
 
@@ -166,6 +175,8 @@ public class MainActivity extends AppCompatActivity {
         addBtnConnectListener();
 
         addBtnSendListener();
+
+        addBtnGraphListener();
 
         mapBTStatus();
 
@@ -353,6 +364,53 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void addBtnGraphListener(){
+        btnGraph.setOnClickListener(v -> {
+            if (txtData.getText().toString().isEmpty()){
+                Toasty.error(this, getResources().getString(R.string.ts_data_warning)).show();
+            }else {
+                float angle = 0, distance = 0, height = 0;
+                double initialVel = Math.pow(rocketVel, 2);
+                if (rdAngle.isChecked()){
+                    angle = Float.parseFloat(txtData.getText().toString());
+                    distance = (float) ((Math.pow(initialVel,2)*(Math.sin(Math.toRadians(angle*2))))/9.81);
+                    height = (float)((Math.pow(initialVel,2)*Math.pow(Math.sin(Math.toRadians(angle)),2))/(9.81*2));
+                }else if (rdDistance.isChecked()){
+                    distance = Float.parseFloat(txtData.getText().toString());
+                    angle = distance == 0 ? 90 : (int) Math.ceil(Math.asin(distance*9.81/initialVel) * (180 / Math.PI));
+                    height = (float)((Math.pow(initialVel,2)*Math.pow(Math.sin(Math.toRadians(angle)),2))/(9.81*2));
+                }else if (rdHeight.isChecked()){
+                    height = Float.parseFloat(txtData.getText().toString());
+                    angle = (float) Math.ceil( Math.asin((9.81*height)/(initialVel)) * 180 / Math.PI );
+                    distance = (float) ((Math.pow(initialVel,2)*(Math.sin(Math.toRadians(angle*2))))/9.81);
+                }
+                LineDataSet line1 = new LineDataSet(dataValues1(angle, height, distance),"Grafica del tiro parabolico");
+                ArrayList<ILineDataSet> dataset = new ArrayList<>();
+                dataset.add(line1);
+                LineData data = new LineData(dataset);
+                chart.setData(data);
+                chart.invalidate();
+                chart.setVisibility(View.VISIBLE);
+            }
+        });
+    }
+
+    private ArrayList<Entry> dataValues1(float angulo, float altura, float distancia){
+        ArrayList<Entry> dataVals = new ArrayList<>();
+        float p = 0,y = 0,h = 0, k = 0, s = 0, x = 0;
+        s = distancia/20;
+        h = distancia/2;
+        k = altura;
+        p = (float) Math.pow(h,2)/(-4*k);
+        while(x < distancia){
+            y = (float) ((Math.pow(x,2) - 2*x*h + Math.pow(h,2) + 4*p*k)/(4*p));
+            dataVals.add(new Entry(x,y));
+            x += s;
+        }
+        dataVals.add(new Entry(distancia,0)); // Distancia Maxima
+        return dataVals;
+    }
+
     private boolean validateAngleValue(int angle_value){
         Log.i(BTTAG, "Validando datos del angulo");
         return angle_value > 0 && angle_value <= 180;
@@ -438,7 +496,7 @@ public class MainActivity extends AppCompatActivity {
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
             Log.i(BTTAG, "Prefs changed");
             actualAngle = shPrefs.getInt(ANGLE_PREF_NAME, 0);
-            rocketMass = shPrefs.getFloat(MASS_PREF_NAME, 2);
+            //rocketMass = shPrefs.getFloat(MASS_PREF_NAME, 2);
             rocketVel = shPrefs.getFloat(VEL_PREF_NAME, 20);
             lblAngle.setText(getString(R.string.lbl_actual_angle, actualAngle));
         }
