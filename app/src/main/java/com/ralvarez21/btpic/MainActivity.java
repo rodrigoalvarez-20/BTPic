@@ -6,6 +6,8 @@ import static com.ralvarez21.btpic.Constants.BTTAG;
 import static com.ralvarez21.btpic.Constants.BT_DATA_RCV_BR;
 import static com.ralvarez21.btpic.Constants.BT_DATA_RCV_BR_EXTRA;
 import static com.ralvarez21.btpic.Constants.BT_DATA_RCV_ERROR;
+import static com.ralvarez21.btpic.Constants.BT_TIMER_ANGLE;
+import static com.ralvarez21.btpic.Constants.BT_TIMER_FINISH;
 import static com.ralvarez21.btpic.Constants.MASS_PREF_NAME;
 import static com.ralvarez21.btpic.Constants.SET_CONNECTED_STATUS_BR;
 import static com.ralvarez21.btpic.Constants.SET_CONNECTED_STATUS_EXTRA_DEVICE;
@@ -39,6 +41,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 
+import android.os.CountDownTimer;
 import android.os.PersistableBundle;
 import android.util.Log;
 import android.view.Menu;
@@ -56,6 +59,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.airbnb.lottie.LottieAnimationView;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
@@ -71,7 +75,7 @@ import es.dmoral.toasty.Toasty;
 
 public class MainActivity extends AppCompatActivity {
 
-
+    private CountDownTimer rcvTimer;
     private BluetoothAdapter bAdapter;
     private ArrayList<BluetoothDevice> pairedDevices;
     private ToggleButton tgBt;
@@ -94,6 +98,7 @@ public class MainActivity extends AppCompatActivity {
     private final String[] permissionsRequired = new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN};
     private final int[] permissionsCodes = new int[]{100, 101, 102};
     SharedPreferences shPrefs;
+    private LottieAnimationView btnLaunch;
 
 
     @SuppressLint("MissingPermission")
@@ -140,6 +145,7 @@ public class MainActivity extends AppCompatActivity {
         btFilters.addAction(UPDATE_BTSOCKET_BR);
         btFilters.addAction(BT_DATA_RCV_BR);
         btFilters.addAction(BT_DATA_RCV_ERROR);
+        btFilters.addAction(BT_TIMER_FINISH);
 
         registerReceiver(receiver, btFilters);
 
@@ -157,6 +163,7 @@ public class MainActivity extends AppCompatActivity {
         rdHeight = findViewById(R.id.rdHeight);
         btnGraph = findViewById(R.id.btnGraph);
         chart = findViewById(R.id.chtLine);
+        btnLaunch = findViewById(R.id.btnLaunch);
 
         lblAngle.setText(getString(R.string.lbl_actual_angle, actualAngle));
 
@@ -168,6 +175,32 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 turnOffBT();
             }
+        });
+
+        btnLaunch.setOnClickListener(v -> {
+            btnLaunch.setAnimation(R.raw.rocket_launch);
+            btnLaunch.playAnimation();
+            //Enviar aqui la notificacion
+            if(btSocket != null) {
+                try {
+                    OutputStream out = btSocket.getOutputStream();
+                    out.write(255);
+                } catch(Exception ex){
+                    Log.e(BTTAG, ex.toString());
+                }
+            }
+            new CountDownTimer(5000, 1000){
+                @Override
+                public void onTick(long l) {
+                    Log.i(BTTAG,"T - " + (l / 1000));
+                }
+
+                @Override
+                public void onFinish() {
+                    btnLaunch.setAnimation(R.raw.rocket_wait);
+                    btnLaunch.playAnimation();
+                }
+            }.start();
         });
 
         addSpPairedListener();
@@ -284,6 +317,7 @@ public class MainActivity extends AppCompatActivity {
                         int data = Integer.parseInt(dataToSend);
                         int totalSteps = 0; // Esta es la variable que va a controlar cuantos pasos va a dar y en que direccion. Si es 0 no enviar
                         int angle = 0;
+                        int fullAngle = 0;
                         boolean sendData = true;
                         double initialVel = Math.pow(rocketVel, 2);
                         double sin_90 = Math.sin(90 * Math.PI / 180);
@@ -295,6 +329,7 @@ public class MainActivity extends AppCompatActivity {
                                 sendData = false;
                             }else {
                                 angle = data;
+
                             }
                         }else if(rdDistance.isChecked()){
                             // Validar el valor de la distancia seleccionada
@@ -315,7 +350,7 @@ public class MainActivity extends AppCompatActivity {
                                 angle = (int) Math.ceil( Math.asin((9.81*data)/(initialVel)) * 180 / Math.PI );
                             }
                         }
-
+                        fullAngle = angle;
                         Log.i(BTTAG, "Angulo obtenido: " + angle);
 
                         // Validar que el angulo actual (a enviar) sea mayor que el que se tiene en el dispositivo (preferencias)
@@ -341,6 +376,7 @@ public class MainActivity extends AppCompatActivity {
                             isAngleSendMinor = true;
                         }else if (angle > actualAngle) {
                             angle -= actualAngle;
+                            fullAngle = angle;
                             totalSteps = convertToSteps(angle);
                             isAngleSendMinor = false;
                         }else {
@@ -352,6 +388,20 @@ public class MainActivity extends AppCompatActivity {
                             //totalSteps = convertToSteps(angle);
                             Log.i(BTTAG, "Sending steps: " + totalSteps);
                             out.write(totalSteps);
+                            int finalTotalAngle = fullAngle;
+                            rcvTimer = new CountDownTimer( 30000, 1000) {
+                                @Override
+                                public void onTick(long l) {
+                                    Log.i(BTTAG, "Remaining time: " + (l / 1000));
+                                }
+
+                                @Override
+                                public void onFinish() {
+                                    Intent timeOutIntent = new Intent(BT_TIMER_FINISH);
+                                    timeOutIntent.putExtra(BT_TIMER_ANGLE, finalTotalAngle);
+                                    getApplicationContext().sendBroadcast(timeOutIntent);
+                                }
+                            }.start();
                         }
                     }catch (Exception ex) {
                         Log.e(BTTAG, ex.getMessage());
@@ -559,6 +609,9 @@ public class MainActivity extends AppCompatActivity {
                     btSocket = btHelperThread.thSocket;
                 }
             }else if (action.equals(BT_DATA_RCV_BR)){
+                if(rcvTimer != null){
+                    rcvTimer.cancel();
+                }
                 int newDevAngle = intent.getIntExtra(BT_DATA_RCV_BR_EXTRA, 0);
                 int angleToSave = 0;
                 Log.i(BTTAG, "Data from Intent BT_RCV: " + newDevAngle);
@@ -571,7 +624,20 @@ public class MainActivity extends AppCompatActivity {
                 actualAngle = angleToSave;
                 shPrefs.edit().putInt(ANGLE_PREF_NAME, angleToSave).apply();
                 Toasty.success(getApplicationContext(),  getResources().getString(R.string.bt_rcv_info, actualAngle)).show();
-            }else{
+            }else if (action.equals(BT_TIMER_FINISH)){
+                int sentAngle = intent.getIntExtra(BT_TIMER_ANGLE, 0);
+                int angleToSave = 0;
+                Log.i(BTTAG, "Data from timeout: " + sentAngle);
+                if (isAngleSendMinor){
+                    Log.i(BTTAG, "El angulo recibido es menor al actual");
+                    angleToSave = actualAngle - sentAngle;
+                }else {
+                    angleToSave = actualAngle + sentAngle;
+                }
+                actualAngle = angleToSave;
+                shPrefs.edit().putInt(ANGLE_PREF_NAME, angleToSave).apply();
+                Toasty.success(getApplicationContext(),  getResources().getString(R.string.bt_rcv_info, actualAngle)).show();
+            } else{
                 Toasty.error(getApplicationContext(), getResources().getString(R.string.bt_rcv_error)).show();
             }
         }

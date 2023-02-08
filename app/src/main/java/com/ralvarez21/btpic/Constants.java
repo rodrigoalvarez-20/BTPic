@@ -16,6 +16,8 @@ public class Constants {
     public static final String BT_DATA_RCV_BR = "BT_DATA_RCV";
     public static final String BT_DATA_RCV_BR_EXTRA = "BT_DATA";
     public static final String BT_DATA_RCV_ERROR = "BT_DATA_RCV";
+    public static final String BT_TIMER_FINISH = "BT_TIMER_FINISH";
+    public static final String BT_TIMER_ANGLE = "BT_TIMER_ANGLE";
 
 
 
